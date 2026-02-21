@@ -8,11 +8,14 @@ Predict : P(winner = 1) for each match
 """
 
 # ---------------------------------------------------------
-# 0. IMPORTS & SEEDS
+# 0. CONFIG & SEEDS
 # ---------------------------------------------------------
-import os, gc, time, warnings, json, csv, sys
+import os, gc, time, warnings, json, csv, sys, shutil
 from pathlib import Path
 from datetime import datetime
+
+# --- Set to True to delete all previous models/results and start fresh ---
+FORCE_RESTART = True
 
 # Fix Windows console UTF-8 encoding
 sys.stdout = open(sys.stdout.fileno(), mode='w', encoding='utf-8', buffering=1)
@@ -22,13 +25,14 @@ import numpy as np
 import pandas as pd
 
 from sklearn.model_selection import StratifiedKFold
-from sklearn.linear_model  import LogisticRegression
-from sklearn.calibration   import CalibratedClassifierCV, calibration_curve
+from sklearn.linear_model  import LogisticRegression, Ridge
+from sklearn.calibration   import CalibratedClassifierCV, calibration_curve, IsotonicRegression
 from sklearn.preprocessing import LabelEncoder
 from sklearn.metrics       import log_loss
 
 import lightgbm as lgb
 from catboost import CatBoostClassifier, Pool
+import xgboost as xgb
 
 # Reproducibility
 SEED = 42
@@ -42,6 +46,12 @@ DATA_DIR  = Path(r"c:\Users\aadit\Documents\vs code\kaggle-royale\dataset")
 OUT_DIR   = Path(r"c:\Users\aadit\Documents\vs code\kaggle-royale\outputs")
 MODEL_DIR = OUT_DIR / "models"
 SUB_DIR   = OUT_DIR / "submissions"
+
+if FORCE_RESTART:
+    for d in [OUT_DIR, Path("catboost_info")]:
+        if d.exists():
+            shutil.rmtree(d, ignore_errors=True)
+    print("  [INFO] FORCE_RESTART=True: Cleaned previous outputs.")
 
 for d in [OUT_DIR, MODEL_DIR, SUB_DIR]:
     d.mkdir(parents=True, exist_ok=True)
@@ -303,10 +313,9 @@ def engineer_features(df: pd.DataFrame) -> pd.DataFrame:
 
     # -- A. Difference features (player - opponent)
     diff_pairs = [
-        ("p_trophy_count",           "o_trophy_count",           "diff_trophies"),
-        ("p_aggression_index",       "o_aggression_index",       "diff_aggression"),
-        ("p_consistency_index",      "o_consistency_index",      "diff_consistency"),
-        ("p_cycle_mastery",          "o_cycle_mastery",          "diff_cycle_mastery"),
+        ("p_cycle_mastery",          "o_cycle_mastery",          "skill_gap"),             # PODIUM: renamed from diff_cycle_mastery
+        ("p_trophy_count",           "o_trophy_count",           "trophy_diff"),            # PODIUM: renamed from diff_trophies
+        ("p_consistency_index",      "o_consistency_index",      "stability_advantage"),    # PODIUM: renamed from diff_consistency
         ("p_lifetime_matches_estimate", "o_lifetime_matches_estimate", "diff_lifetime_matches"),
         ("avg_elixir_player",        "avg_elixir_opponent",      "diff_avg_elixir"),
         ("pd_synergy_index",         "od_synergy_index",         "diff_synergy"),
@@ -327,6 +336,7 @@ def engineer_features(df: pd.DataFrame) -> pd.DataFrame:
 
     # -- B. Ratio features
     ratio_pairs = [
+        ("p_elixir_efficiency",      "o_elixir_efficiency",      "elixir_efficiency_ratio"), # PODIUM
         ("p_trophy_count",           "o_trophy_count",           "ratio_trophies"),
         ("p_aggression_index",       "o_aggression_index",       "ratio_aggression"),
         ("pd_synergy_index",         "od_synergy_index",         "ratio_synergy"),
@@ -377,6 +387,118 @@ def engineer_features(df: pd.DataFrame) -> pd.DataFrame:
         df["p_elixir_efficiency"]  = df["avg_elixir_player"]  / (df["elixir_spill_rate"] + EPS)
         df["elixir_edge"]          = df["elixir_difference"]  / (df["avg_elixir_player"].abs() + EPS)
 
+    # =========================================================
+    # -- G. DEEP FEATURE ENGINEERING (Secret Sauce)
+    # =========================================================
+
+    # G1. Archetype Style Clash Score
+    # Beatdown archetypes (golem, giant_beatdown, lava_hound, balloon_rage) have high tempo and high
+    # elixir cost. Control archetypes (pekka_control, x_bow, miner_poison) have negative tempo.
+    # This feature captures how "counter-type" the matchup is.
+    BEATDOWN = {"golem", "giant_beatdown", "lava_hound", "balloon_rage", "three_musketeers"}
+    CONTROL  = {"pekka_control", "x_bow", "miner_poison", "hog_cycle"}
+    SPELL    = {"spell_bait", "graveyard", "miner_poison"}
+
+    if "pd_win_condition_family" in df.columns:
+        df["p_is_beatdown"] = df["pd_win_condition_family"].isin(BEATDOWN).astype(np.int8)
+        df["p_is_control"]  = df["pd_win_condition_family"].isin(CONTROL).astype(np.int8)
+        df["p_is_spell"]    = df["pd_win_condition_family"].isin(SPELL).astype(np.int8)
+    if "od_win_condition_family" in df.columns:
+        df["o_is_beatdown"] = df["od_win_condition_family"].isin(BEATDOWN).astype(np.int8)
+        df["o_is_control"]  = df["od_win_condition_family"].isin(CONTROL).astype(np.int8)
+        df["o_is_spell"]    = df["od_win_condition_family"].isin(SPELL).astype(np.int8)
+
+    # Matchup type: beatdown vs control (classic counter-pick)
+    if "p_is_beatdown" in df.columns and "o_is_control" in df.columns:
+        df["p_beats_style"]   = df["p_is_beatdown"] & df["o_is_control"]   # player has style advantage
+        df["o_beats_style"]   = df["o_is_beatdown"] & df["p_is_control"]   # opponent has style advantage
+        df["style_clash"]     = df["p_beats_style"].astype(int) - df["o_beats_style"].astype(int)
+        df["mirrored_style"]  = (df["pd_win_condition_family"] == df["od_win_condition_family"]).astype(np.int8)
+        df["spell_vs_beatdown"] = (df["p_is_spell"] & df["o_is_beatdown"]).astype(np.int8)
+
+    # G2. Deck Dominance Score
+    # Composite score: high synergy + high ceiling + high spell pressure = dominant deck
+    if all(c in df.columns for c in ["pd_synergy_index", "pd_skill_ceiling", "pd_spell_pressure_score"]):
+        df["p_dominance_score"] = (
+            df["pd_synergy_index"] * 0.4 +
+            df["pd_skill_ceiling"] * 0.35 +
+            df["pd_spell_pressure_score"] * 0.25
+        )
+        df["o_dominance_score"] = (
+            df["od_synergy_index"] * 0.4 +
+            df["od_skill_ceiling"] * 0.35 +
+            df["od_spell_pressure_score"] * 0.25
+        )
+        df["diff_dominance"] = df["p_dominance_score"] - df["o_dominance_score"]
+        df["dominance_ratio"] = df["p_dominance_score"] / (df["o_dominance_score"].abs() + EPS)
+
+    # G3. Skill Expression Potential
+    # How much "skill gap" can each player unlock from their deck? High ceiling vs high floor = more room.
+    if "pd_skill_ceiling" in df.columns and "pd_skill_floor" in df.columns:
+        df["p_skill_expression"]  = df["pd_skill_ceiling"] - df["pd_skill_floor"]
+        df["o_skill_expression"]  = df["od_skill_ceiling"] - df["od_skill_floor"]
+        df["diff_skill_expression"] = df["p_skill_expression"] - df["o_skill_expression"]
+
+    # G4. Pressure vs Defense Matchup
+    # Does the opponent have enough air defense to neutralize player's spell pressure?
+    if "pd_spell_pressure_score" in df.columns and "od_air_defense_score" in df.columns:
+        df["p_pressure_vs_o_defense"] = df["pd_spell_pressure_score"] - df["od_air_defense_score"]
+        df["o_pressure_vs_p_defense"] = df["od_spell_pressure_score"] - df["pd_air_defense_score"]
+        df["net_pressure_advantage"]  = df["p_pressure_vs_o_defense"] - df["o_pressure_vs_p_defense"]
+
+    # G5. Player Form Stability Score (complexity-adjusted)
+    # High consistency + low tilt + low deck complexity = more reliable under pressure
+    if all(c in df.columns for c in ["p_consistency_index", "p_tilt_factor", "pd_complexity_rating"]):
+        df["p_form_stability"] = (
+            df["p_consistency_index"] - df["p_tilt_factor"]
+        ) / (df["pd_complexity_rating"].clip(1) + EPS)
+        df["o_form_stability"] = (
+            df["o_consistency_index"] - df["o_tilt_factor"]
+        ) / (df["od_complexity_rating"].clip(1) + EPS)
+        df["diff_form_stability"] = df["p_form_stability"] - df["o_form_stability"]
+
+    # G6. Experience vs Skill synergy
+    # High lifetime matches + high cycle mastery = veteran speed player
+    if "p_lifetime_matches_estimate" in df.columns and "p_cycle_mastery" in df.columns:
+        df["p_veteran_score"] = np.log1p(df["p_lifetime_matches_estimate"].clip(0)) * df["p_cycle_mastery"]
+        df["o_veteran_score"] = np.log1p(df["o_lifetime_matches_estimate"].clip(0)) * df["o_cycle_mastery"]
+        df["diff_veteran"]    = df["p_veteran_score"] - df["o_veteran_score"]
+
+    # G7. Meta Alignment Score
+    # In a high-aggression-shift meta, does player's aggression style match the current trend?
+    if "bp_aggression_shift" in df.columns and "p_aggression_index" in df.columns:
+        df["p_meta_alignment"] = df["bp_aggression_shift"] * df["p_aggression_index"]
+        df["o_meta_alignment"] = df["bp_aggression_shift"] * df["o_aggression_index"]
+        df["diff_meta_alignment"] = df["p_meta_alignment"] - df["o_meta_alignment"]
+
+    # G8. Game Momentum Features (from match timing)
+    # Early first crown = dominant performance; late first crown = contested match
+    if "first_crown_time_sec" in df.columns and "match_duration_sec" in df.columns:
+        df["match_competitiveness"]  = df["first_crown_time_sec"] / (df["match_duration_sec"] + EPS)
+        df["late_game_factor"]       = (df["match_duration_sec"] - df["first_crown_time_sec"]) / (df["match_duration_sec"] + EPS)
+        # High tower damage in first 60s = player controlled the pace
+        if "tower_damage_diff_60s" in df.columns:
+            df["early_game_dominance"] = df["tower_damage_diff_60s"] / (df["match_duration_sec"] + EPS)
+            df["early_x_skill"]        = df["early_game_dominance"] * df.get("diff_skill_ceiling", 0)
+
+    # G9. Meta Volatility Risk Exposure
+    # High-complexity decks in volatile metas are riskier
+    if "bp_meta_volatility" in df.columns and "pd_complexity_rating" in df.columns:
+        df["p_volatility_risk"] = df["bp_meta_volatility"] * df["pd_complexity_rating"]
+        df["o_volatility_risk"] = df["bp_meta_volatility"] * df["od_complexity_rating"]
+        df["diff_volatility_risk"] = df["p_volatility_risk"] - df["o_volatility_risk"]
+
+    # -- Podium Strategy: Matchup Intelligence --
+    if "pd_win_condition_family" in df.columns and "od_win_condition_family" in df.columns:
+        df["matchup_interaction"] = df["pd_win_condition_family"].astype(str) + "_vs_" + df["od_win_condition_family"].astype(str)
+
+    # G10. Control Meta Factor alignment
+    # In a control-heavy meta, control-style decks have structural advantage
+    if "bp_control_meta_factor" in df.columns and "p_is_control" in df.columns:
+        df["p_control_meta_boost"] = df["bp_control_meta_factor"] * df["p_is_control"]
+        df["o_control_meta_boost"] = df["bp_control_meta_factor"] * df["o_is_control"]
+        df["diff_control_boost"]   = df["p_control_meta_boost"] - df["o_control_meta_boost"]
+
     # -- F. Log-transform heavy-tailed numeric features
     log_cols = ["p_trophy_count", "o_trophy_count",
                 "p_lifetime_matches_estimate", "o_lifetime_matches_estimate"]
@@ -414,30 +536,38 @@ def get_categorical_cols(df):
 def encode_for_lgb(train_df: pd.DataFrame, test_df: pd.DataFrame,
                    cat_cols: list, target: pd.Series):
     """
-    Target-encode categoricals for LightGBM.
-    Use global target mean per category (with smoothing).
+    OOF 5-fold Target Encoding with smoothing to prevent leakage.
+    For train: estimates are calculated fold-by-fold using other folds.
+    For test: global mapping from full train set is used.
     """
-    log("  Encoding categoricals for LightGBM (target encoding)...")
+    log("  Encoding categoricals for LightGBM (OOF Target Encoding)...")
     global_mean = target.mean()
-    smoothing   = 10  # min_samples_leaf equivalent
+    smoothing   = 10  # min_samples_leaf
+    skf = StratifiedKFold(n_splits=5, shuffle=True, random_state=SEED)
 
     encoders = {}
     for c in cat_cols:
-        stats = (
-            pd.DataFrame({"y": target, "x": train_df[c]})
-            .groupby("x")["y"]
-            .agg(["mean", "count"])
-            .reset_index()
-        )
-        stats["smooth"] = (
-            (stats["mean"] * stats["count"] + global_mean * smoothing)
-            / (stats["count"] + smoothing)
-        )
-        mapping = dict(zip(stats["x"], stats["smooth"]))
-        encoders[c] = {"mapping": mapping, "global_mean": global_mean}
+        train_encoded = np.zeros(len(train_df))
 
-        train_df[c] = train_df[c].map(mapping).fillna(global_mean)
-        test_df[c]  = test_df[c].map(mapping).fillna(global_mean)
+        # Train OOF
+        for tr_idx, va_idx in skf.split(train_df, target):
+            X_tr, y_tr = train_df.iloc[tr_idx][c], target.iloc[tr_idx]
+            X_va       = train_df.iloc[va_idx][c]
+
+            stats = pd.DataFrame({"y": y_tr, "x": X_tr}).groupby("x")["y"].agg(["mean", "count"])
+            stats["smooth"] = (stats["mean"] * stats["count"] + global_mean * smoothing) / (stats["count"] + smoothing)
+            mapping = stats["smooth"].to_dict()
+
+            train_encoded[va_idx] = X_va.map(mapping).fillna(global_mean)
+
+        # Global mapping for Test
+        full_stats = pd.DataFrame({"y": target, "x": train_df[c]}).groupby("x")["y"].agg(["mean", "count"])
+        full_stats["smooth"] = (full_stats["mean"] * full_stats["count"] + global_mean * smoothing) / (full_stats["count"] + smoothing)
+        global_mapping = full_stats["smooth"].to_dict()
+
+        train_df[c] = train_encoded
+        test_df[c]  = test_df[c].map(global_mapping).fillna(global_mean)
+        encoders[c] = {"mapping": global_mapping, "global_mean": global_mean}
 
     return train_df, test_df, encoders
 
@@ -532,7 +662,7 @@ LGB_PARAMS = {
     "metric"          : "binary_logloss",
     "verbosity"       : -1,
     "boosting_type"   : "gbdt",
-    "learning_rate"   : 0.05,
+    "learning_rate"   : 0.01,           # Slower learning
     "num_leaves"      : 127,
     "max_depth"       : -1,
     "min_data_in_leaf": 100,
@@ -546,8 +676,8 @@ LGB_PARAMS = {
 }
 
 N_FOLDS     = 5
-LGB_ROUNDS  = 2000
-LGB_ES      = 50   # early stopping
+LGB_ROUNDS  = 10000         # More rounds
+LGB_ES      = 200           # Patient stopping
 
 
 def train_lgb(X_train, y_train, X_test, feature_cols):
@@ -567,10 +697,20 @@ def train_lgb(X_train, y_train, X_test, feature_cols):
         X_va, y_va = X_train.iloc[va_idx], y_train.iloc[va_idx]
 
         model_path = MODEL_DIR / f"lgb_fold{fold}.txt"
+        model = None
+
         if model_path.exists():
             log(f"  [INFO] Loading existing model: {model_path}")
-            model = lgb.Booster(model_file=str(model_path))
-        else:
+            try:
+                model = lgb.Booster(model_file=str(model_path))
+                # Quick verification
+                _ = model.predict(X_va[:1])
+            except Exception as e:
+                log(f"  [WARN] Corrupted model file detected ({e}). Deleting and re-training...")
+                model_path.unlink(missing_ok=True)
+                model = None
+
+        if model is None:
             dtrain = lgb.Dataset(X_tr, label=y_tr, free_raw_data=True)
             dval   = lgb.Dataset(X_va, label=y_va, free_raw_data=True)
 
@@ -625,8 +765,8 @@ def train_lgb(X_train, y_train, X_test, feature_cols):
 # 9. CATBOOST TRAINING (5-Fold CV)
 # ---------------------------------------------------------
 CB_PARAMS = {
-    "iterations"      : 2000,
-    "learning_rate"   : 0.05,
+    "iterations"      : 10000,
+    "learning_rate"   : 0.01,
     "depth"           : 8,
     "l2_leaf_reg"     : 5.0,
     "loss_function"   : "Logloss",
@@ -634,7 +774,7 @@ CB_PARAMS = {
     "random_seed"     : SEED,
     "thread_count"    : -1,
     "od_type"         : "Iter",
-    "od_wait"         : 50,
+    "od_wait"         : 200,
     "verbose"         : 200,
 }
 
@@ -660,11 +800,21 @@ def train_catboost(X_train, y_train, X_test, cat_cols):
         X_va, y_va = X_train.iloc[va_idx], y_train.iloc[va_idx]
 
         model_path = MODEL_DIR / f"cb_fold{fold}.cbm"
+        model = None
+
         if model_path.exists():
             log(f"  [INFO] Loading existing model: {model_path}")
-            model = CatBoostClassifier()
-            model.load_model(str(model_path))
-        else:
+            try:
+                model = CatBoostClassifier()
+                model.load_model(str(model_path))
+                # Quick verification
+                _ = model.predict_proba(X_va[:1])
+            except Exception as e:
+                log(f"  [WARN] Corrupted model file detected ({e}). Deleting and re-training...")
+                model_path.unlink(missing_ok=True)
+                model = None
+
+        if model is None:
             train_pool = Pool(X_tr, y_tr, cat_features=cat_idx)
             val_pool   = Pool(X_va, y_va, cat_features=cat_idx)
 
@@ -696,12 +846,96 @@ def train_catboost(X_train, y_train, X_test, cat_cols):
 
 
 # ---------------------------------------------------------
+# 9. XGBOOST TRAINING (5-Fold CV)
+# ---------------------------------------------------------
+XGB_PARAMS = {
+    "objective"             : "binary:logistic",
+    "eval_metric"           : "logloss",
+    "learning_rate"         : 0.01,
+    "max_depth"             : 6,
+    "min_child_weight"      : 10,
+    "subsample"             : 0.8,
+    "colsample_bytree"      : 0.8,
+    "reg_alpha"             : 0.1,
+    "reg_lambda"            : 1.0,
+    "random_state"          : SEED,
+    "n_estimators"          : 10000,
+    "tree_method"           : "hist",
+    "verbosity"             : 0,
+    "early_stopping_rounds" : 200,
+}
+
+
+def train_xgb(X_train, y_train, X_test, feature_cols):
+    log("\n" + "="*60)
+    log("  STEP 7c: XGBoost TRAINING")
+    log("="*60)
+
+    skf        = StratifiedKFold(n_splits=N_FOLDS, shuffle=True, random_state=SEED)
+    oof_preds  = np.zeros(len(X_train))
+    test_preds = np.zeros(len(X_test))
+    fold_scores = []
+
+    for fold, (tr_idx, va_idx) in enumerate(skf.split(X_train, y_train), 1):
+        log(f"\n  -- Fold {fold}/{N_FOLDS} --")
+        t0 = time.time()
+
+        X_tr, y_tr = X_train.iloc[tr_idx], y_train.iloc[tr_idx]
+        X_va, y_va = X_train.iloc[va_idx], y_train.iloc[va_idx]
+
+        model_path = MODEL_DIR / f"xgb_fold{fold}.json"
+        model = None
+
+        if model_path.exists():
+            log(f"  [INFO] Loading existing model: {model_path}")
+            try:
+                model = xgb.XGBClassifier()
+                model.load_model(str(model_path))
+                _ = model.predict_proba(X_va[:1])
+            except Exception as e:
+                log(f"  [WARN] Corrupted XGB model ({e}). Re-training...")
+                model_path.unlink(missing_ok=True)
+                model = None
+
+        if model is None:
+            model = xgb.XGBClassifier(**XGB_PARAMS)
+            model.fit(
+                X_tr, y_tr,
+                eval_set=[(X_va, y_va)],
+                verbose=200,
+            )
+            model.save_model(str(model_path))
+
+        oof_preds[va_idx]  = model.predict_proba(X_va)[:, 1]
+        test_preds        += model.predict_proba(X_test)[:, 1] / N_FOLDS
+
+        score = log_loss(y_va, oof_preds[va_idx])
+        fold_scores.append(score)
+        log(f"  Fold {fold} log-loss: {score:.6f}  |  {(time.time()-t0):.1f}s")
+
+        del model
+        gc.collect()
+
+    cv_score = log_loss(y_train, oof_preds)
+    log(f"\n  [OK] XGB OOF log-loss: {cv_score:.6f}")
+    log(f"  Per-fold: {[round(s,6) for s in fold_scores]}")
+
+    oof_preds  = np.clip(oof_preds,  0.001, 0.999)
+    test_preds = np.clip(test_preds, 0.001, 0.999)
+
+    track_experiment("XGBoost_baseline", f"{len(feature_cols)}_features",
+                     cv_score, "5-fold CV baseline", XGB_PARAMS)
+
+    return oof_preds, test_preds, cv_score
+
+
+# ---------------------------------------------------------
 # 10. CALIBRATION
 # ---------------------------------------------------------
 def calibrate_oof(oof_preds, y_train, oof_name="model"):
     log(f"\n  Calibrating {oof_name} OOF predictions...")
 
-    # Platt scaling
+    # Platt scaling (Logistic Regression)
     oof_2d = oof_preds.reshape(-1, 1)
     platt  = LogisticRegression(C=1.0, max_iter=1000, random_state=SEED)
     platt.fit(oof_2d, y_train)
@@ -713,7 +947,18 @@ def calibrate_oof(oof_preds, y_train, oof_name="model"):
     log(f"  {oof_name} raw log-loss   : {raw_ll:.6f}")
     log(f"  {oof_name} Platt log-loss : {platt_ll:.6f}")
 
-    return platt, platt_ll < raw_ll   # (calibrator, use_calibration flag)
+    return platt, platt_ll < raw_ll
+
+
+def calibrate_isotonic(oof_preds, y_train):
+    """Isotonic regression calibration (Podium Step 3)."""
+    log("\n  Calibrating with Isotonic Regression...")
+    iso = IsotonicRegression(out_of_bounds="clip")
+    iso.fit(oof_preds, y_train)
+    calibrated = iso.transform(oof_preds)
+    ll = log_loss(y_train, calibrated)
+    log(f"  Isotonic OOF log-loss: {ll:.6f}")
+    return iso, ll
 
 
 def apply_calibrator(calibrator, preds):
@@ -723,8 +968,47 @@ def apply_calibrator(calibrator, preds):
 # ---------------------------------------------------------
 # 11. ENSEMBLING (Weighted Average + Stacking)
 # ---------------------------------------------------------
+def ridge_meta_blend(lgb_oof, cb_oof, xgb_oof, y_train, lgb_test, cb_test, xgb_test):
+    """Ridge Regression Meta-Model for 3-model blending (Podium Step 4)."""
+    log("\n  Training Ridge Regression Meta-Model for optimal weighting...")
+    meta_train = np.column_stack([lgb_oof, cb_oof, xgb_oof])
+    meta_test  = np.column_stack([lgb_test, cb_test, xgb_test])
+
+    ridge = Ridge(alpha=1.0, random_state=SEED)
+    ridge.fit(meta_train, y_train)
+
+    # Ridge returns raw linear values, so we should ideally constrain to [0,1]
+    # but since it's a stacker, we'll clip later.
+    blend_oof  = np.clip(ridge.predict(meta_train), 0.001, 0.999)
+    blend_test = np.clip(ridge.predict(meta_test), 0.001, 0.999)
+
+    ll = log_loss(y_train, blend_oof)
+    log(f"  Ridge Blend OOF log-loss: {ll:.6f}")
+    log(f"  Ridge coefficients: {ridge.coef_}")
+    return ridge, blend_oof, blend_test, ll
+
+
+def find_best_blend_weights_3(lgb_oof, cb_oof, xgb_oof, y):
+    """Grid-search over 3-model blend weights on OOF preds."""
+    log("\n  Searching for best 3-model blend weights...")
+    best_ll, best_weights = np.inf, (0.4, 0.3, 0.3)
+    step = 0.1
+    for wl in np.arange(0.1, 0.9, step):
+        for wc in np.arange(0.1, 1.0 - wl, step):
+            wx = round(1.0 - wl - wc, 6)
+            if wx < 0.05:
+                continue
+            blended = wl * lgb_oof + wc * cb_oof + wx * xgb_oof
+            ll = log_loss(y, blended)
+            if ll < best_ll:
+                best_ll, best_weights = ll, (wl, wc, wx)
+    log(f"  Best weights  LGB={best_weights[0]:.2f}  CB={best_weights[1]:.2f}  XGB={best_weights[2]:.2f}")
+    log(f"  3-model blend OOF log-loss: {best_ll:.6f}")
+    return best_weights, best_ll
+
+
 def find_best_blend_weights(lgb_oof, cb_oof, y):
-    """Grid-search over blend weights on OOF preds."""
+    """Grid-search over blend weights on OOF preds (2-model fallback)."""
     log("\n  Searching for best blend weights...")
     best_ll, best_w = np.inf, 0.5
     for w in np.arange(0.1, 1.0, 0.05):
@@ -736,14 +1020,18 @@ def find_best_blend_weights(lgb_oof, cb_oof, y):
     return best_w, best_ll
 
 
-def stacking_meta(lgb_oof, cb_oof, y, lgb_test, cb_test):
+def stacking_meta(lgb_oof, cb_oof, y, lgb_test, cb_test, xgb_oof=None, xgb_test=None):
     """
     Level-2 stacking using OOF predictions as meta-features.
     Trains a logistic regression (meta-model) and returns test probs.
     """
     log("\n  Level-2 Stacking with LogReg meta-model...")
-    meta_train = np.column_stack([lgb_oof, cb_oof])
-    meta_test  = np.column_stack([lgb_test, cb_test])
+    if xgb_oof is not None:
+        meta_train = np.column_stack([lgb_oof, cb_oof, xgb_oof])
+        meta_test  = np.column_stack([lgb_test, cb_test, xgb_test])
+    else:
+        meta_train = np.column_stack([lgb_oof, cb_oof])
+        meta_test  = np.column_stack([lgb_test, cb_test])
 
     meta_model = LogisticRegression(C=1.0, max_iter=1000, random_state=SEED)
     meta_model.fit(meta_train, y)
@@ -813,15 +1101,24 @@ def main():
     # Submission #2: CB baseline
     save_submission(cb_test, match_ids, "sub02_cb_baseline.csv", ss)
 
-    # -- 10. Calibration
+    # -- 7c. XGBoost  (uses same LGB-encoded numeric-only data)
+    xgb_oof, xgb_test, xgb_cv = train_xgb(X_lgb_train, y_train, X_lgb_test, feature_cols)
+
+    # Submission #7: XGB baseline
+    save_submission(xgb_test, match_ids, "sub07_xgb_baseline.csv", ss)
+
+    # -- 10. Calibration (all three models)
     lgb_cal, lgb_use_cal = calibrate_oof(lgb_oof, y_train, "LGB")
     cb_cal,  cb_use_cal  = calibrate_oof(cb_oof,  y_train, "CB")
+    xgb_cal, xgb_use_cal = calibrate_oof(xgb_oof, y_train, "XGB")
 
     lgb_test_cal = apply_calibrator(lgb_cal, lgb_test) if lgb_use_cal else lgb_test
     cb_test_cal  = apply_calibrator(cb_cal,  cb_test)  if cb_use_cal  else cb_test
+    xgb_test_cal = apply_calibrator(xgb_cal, xgb_test) if xgb_use_cal else xgb_test
 
     lgb_oof_cal  = apply_calibrator(lgb_cal, lgb_oof) if lgb_use_cal else lgb_oof
     cb_oof_cal   = apply_calibrator(cb_cal,  cb_oof)  if cb_use_cal  else cb_oof
+    xgb_oof_cal  = apply_calibrator(xgb_cal, xgb_oof) if xgb_use_cal else xgb_oof
 
     # Submission #3: calibrated LGB
     save_submission(lgb_test_cal, match_ids, "sub03_lgb_calibrated.csv", ss)
@@ -833,36 +1130,59 @@ def main():
     track_experiment("CatBoost_calibrated", "native_cats",
                      log_loss(y_train, cb_oof_cal), "Platt-scaled CB")
 
-    # -- 11. Weighted blend
+    # -- 11a. Two-model weighted blend (LGB+CB, kept for backward compat)
     best_w, blend_cv = find_best_blend_weights(lgb_oof_cal, cb_oof_cal, y_train)
     blend_test = best_w * lgb_test_cal + (1 - best_w) * cb_test_cal
     save_submission(blend_test, match_ids, "sub05_weighted_blend.csv", ss)
-    track_experiment("Weighted_Blend",
-                     f"LGB*{best_w:.2f}+CB*{1-best_w:.2f}",
-                     blend_cv, "Optimal weighted average")
 
-    # -- 12. Stacking (Level-2)
-    stack_test, stack_cv = stacking_meta(lgb_oof_cal, cb_oof_cal, y_train,
-                                         lgb_test_cal, cb_test_cal)
-    stack_test = np.clip(stack_test, 0.001, 0.999)
+    # -- 11b. Three-model weighted blend (LGB+CB+XGB)
+    best_3w, blend3_cv = find_best_blend_weights_3(
+        lgb_oof_cal, cb_oof_cal, xgb_oof_cal, y_train)
+    wl, wc, wx = best_3w
+    blend3_test = wl * lgb_test_cal + wc * cb_test_cal + wx * xgb_test_cal
+    save_submission(blend3_test, match_ids, "sub08_three_model_blend.csv", ss)
+
+    # -- 11c. Podium Strategy: Ridge Meta-Model Blend (Step 4)
+    ridge_mdl, ridge_oof, ridge_test, ridge_ll = ridge_meta_blend(
+        lgb_oof_cal, cb_oof_cal, xgb_oof_cal, y_train,
+        lgb_test_cal, cb_test_cal, xgb_test_cal
+    )
+
+    # -- 11d. Podium Strategy: Isotonic Calibration (Step 3)
+    # Apply Isotonic Regression to the Ridge-blended output
+    iso_cal, podium_ll = calibrate_isotonic(ridge_oof, y_train)
+    podium_oof_cal  = np.clip(iso_cal.transform(ridge_oof), 0.001, 0.999)
+    podium_test_cal = np.clip(iso_cal.transform(ridge_test), 0.001, 0.999)
+
+    # FINAL PODIUM SUBMISSION
+    save_submission(podium_test_cal, match_ids, "submission.csv", ss)
+    track_experiment("Podium_Strategy", "Ridge+Isotonic", podium_ll, "Ridge stacker + Isotonic calibration")
+
+    # -- 12. Stacking (Level-2, kept for comparison)
+    stack_test, stack_cv = stacking_meta(
+        lgb_oof_cal, cb_oof_cal, y_train,
+        lgb_test_cal, cb_test_cal,
+        xgb_oof=xgb_oof_cal, xgb_test=xgb_test_cal)
     save_submission(stack_test, match_ids, "sub06_stacking.csv", ss)
-    track_experiment("Stacking_LogReg", "OOF_LGB+CB", stack_cv, "Level-2 LogReg stacker")
 
     # -- Final summary
     log("\n\n" + "="*60)
-    log("  FINAL RESULTS SUMMARY")
+    log("  FINAL RESULTS SUMMARY - PODIUM STRATEGY")
     log("="*60)
-    log(f"  LGB  OOF log-loss : {lgb_cv:.6f}")
-    log(f"  CB   OOF log-loss : {cb_cv:.6f}")
-    log(f"  Best blend weight : LGB={best_w:.2f}  CB={1-best_w:.2f}")
-    log(f"  Blend OOF LL      : {blend_cv:.6f}")
-    log(f"  Stack OOF LL      : {stack_cv:.6f}")
+    log(f"  LGB  OOF log-loss      : {lgb_cv:.6f}")
+    log(f"  CB   OOF log-loss      : {cb_cv:.6f}")
+    log(f"  XGB  OOF log-loss      : {xgb_cv:.6f}")
+    log(f"  Ridge Blend OOF LL     : {ridge_ll:.6f}")
+    log(f"  PODIUM (Iso-Cal) OOF LL: {podium_ll:.6f}")
+    log(f"  Stack OOF LL           : {stack_cv:.6f}")
 
     all_results = {
-        "lgb_oof"    : lgb_cv,
-        "cb_oof"     : cb_cv,
-        "blend_oof"  : blend_cv,
-        "stack_oof"  : stack_cv,
+        "lgb_oof"       : lgb_cv,
+        "cb_oof"        : cb_cv,
+        "xgb_oof"       : xgb_cv,
+        "ridge_oof"     : ridge_ll,
+        "podium_oof"    : podium_ll,
+        "stack_oof"     : stack_cv,
     }
     best_model = min(all_results, key=all_results.get)
     log(f"\n  [BEST] Best model: {best_model}  (LL={all_results[best_model]:.6f})")
@@ -871,7 +1191,7 @@ def main():
 
     with open(OUT_DIR / "summary.json", "w") as f:
         json.dump({"results": all_results, "best": best_model,
-                   "blend_w_lgb": best_w, "seed": SEED}, f, indent=2)
+                   "ridge_coef": ridge_mdl.coef_.tolist(), "seed": SEED}, f, indent=2)
 
     return all_results
 

@@ -1,19 +1,19 @@
-[23:05:25] 
+[01:37:42] 
 ============================================================
-[23:05:25]   ISTE KAGGLE ROYALE - ML PIPELINE START
-[23:05:25] ============================================================
-[23:05:25] 
+[01:37:42]   ISTE KAGGLE ROYALE - ML PIPELINE START
+[01:37:42] ============================================================
+[01:37:42] 
 
 ========== STEP 1: DATA INGESTION & VALIDATION ==========
-[23:05:35]   [WARN] 'avg_elixir_player' had 22882 non-numeric values coerced -> NaN
-[23:05:42]   [INFO] Dropped 26443 exact duplicate rows from train. New size: 1401557
-[23:05:42]   train=(1401557, 15), test=(400000, 14), pb=(20000, 8)
-[23:05:42]   deck_archetypes=(12, 12), balance_patches=(14, 4)
-[23:05:42] 
+[01:37:46]   [WARN] 'avg_elixir_player' had 22882 non-numeric values coerced -> NaN
+[01:37:48]   [INFO] Dropped 26443 exact duplicate rows from train. New size: 1401557
+[01:37:48]   train=(1401557, 15), test=(400000, 14), pb=(20000, 8)
+[01:37:48]   deck_archetypes=(12, 12), balance_patches=(14, 4)
+[01:37:48] 
 ==================================================
-[23:05:42]   VALIDATING: matches_train  shape=(1401557, 15)
-[23:05:42] ==================================================
-[23:05:43]   [WARN] Missing values:
+[01:37:48]   VALIDATING: matches_train  shape=(1401557, 15)
+[01:37:48] ==================================================
+[01:37:48]   [WARN] Missing values:
 match_id                   42219
 player_id                  41918
 opponent_id                41940
@@ -28,9 +28,9 @@ first_crown_time_sec       41978
 match_duration_sec         42354
 elixir_spill_rate          41934
 tower_damage_diff_60s      42053
-[23:05:47]   [OK] No duplicate rows
-[23:05:47]   [WARN] PK 'match_id' not unique: 1357836/1401557 unique
-[23:05:47]   dtypes:
+[01:37:49]   [OK] No duplicate rows
+[01:37:50]   [WARN] PK 'match_id' not unique: 1357836/1401557 unique
+[01:37:50]   dtypes:
 match_id                    object
 player_id                   object
 opponent_id                 object
@@ -46,14 +46,14 @@ match_duration_sec         float64
 elixir_spill_rate          float64
 tower_damage_diff_60s      float64
 winner                       int64
-[23:05:47] 
+[01:37:50] 
 ==================================================
-[23:05:47]   VALIDATING: matches_test  shape=(400000, 14)
-[23:05:47] ==================================================
-[23:05:47]   [OK] No missing values
-[23:05:47]   [OK] No duplicate rows
-[23:05:47]   [OK] PK 'match_id' is unique (400000 records)
-[23:05:47]   dtypes:
+[01:37:50]   VALIDATING: matches_test  shape=(400000, 14)
+[01:37:50] ==================================================
+[01:37:50]   [OK] No missing values
+[01:37:50]   [OK] No duplicate rows
+[01:37:50]   [OK] PK 'match_id' is unique (400000 records)
+[01:37:50]   dtypes:
 match_id                    object
 player_id                   object
 opponent_id                 object
@@ -68,14 +68,14 @@ first_crown_time_sec         int64
 match_duration_sec           int64
 elixir_spill_rate          float64
 tower_damage_diff_60s      float64
-[23:05:47] 
+[01:37:50] 
 ==================================================
-[23:05:47]   VALIDATING: players_behavior  shape=(20000, 8)
-[23:05:47] ==================================================
-[23:05:47]   [OK] No missing values
-[23:05:47]   [OK] No duplicate rows
-[23:05:47]   [OK] PK 'player_id' is unique (20000 records)
-[23:05:47]   dtypes:
+[01:37:50]   VALIDATING: players_behavior  shape=(20000, 8)
+[01:37:50] ==================================================
+[01:37:50]   [OK] No missing values
+[01:37:50]   [OK] No duplicate rows
+[01:37:50]   [OK] PK 'player_id' is unique (20000 records)
+[01:37:50]   dtypes:
 player_id                     object
 trophy_count                   int64
 arena_id                       int64
@@ -84,14 +84,14 @@ cycle_mastery                float64
 tilt_factor                  float64
 lifetime_matches_estimate      int64
 consistency_index            float64
-[23:05:47] 
+[01:37:50] 
 ==================================================
-[23:05:47]   VALIDATING: deck_archetypes  shape=(12, 12)
-[23:05:47] ==================================================
-[23:05:47]   [OK] No missing values
-[23:05:47]   [OK] No duplicate rows
-[23:05:47]   [OK] PK 'deck_signature' is unique (12 records)
-[23:05:47]   dtypes:
+[01:37:50]   VALIDATING: deck_archetypes  shape=(12, 12)
+[01:37:50] ==================================================
+[01:37:50]   [OK] No missing values
+[01:37:50]   [OK] No duplicate rows
+[01:37:50]   [OK] PK 'deck_signature' is unique (12 records)
+[01:37:50]   dtypes:
 deck_signature           object
 win_condition_family     object
 avg_elixir_cost         float64
@@ -104,167 +104,71 @@ tempo_vector_2          float64
 control_vector          float64
 synergy_index           float64
 complexity_rating         int64
-[23:05:47] 
+[01:37:50] 
 ==================================================
-[23:05:47]   VALIDATING: balance_patches  shape=(14, 4)
-[23:05:47] ==================================================
-[23:05:47]   [OK] No missing values
-[23:05:47]   [OK] No duplicate rows
-[23:05:47]   [OK] PK 'patch_id' is unique (14 records)
-[23:05:47]   dtypes:
+[01:37:50]   VALIDATING: balance_patches  shape=(14, 4)
+[01:37:50] ==================================================
+[01:37:50]   [OK] No missing values
+[01:37:50]   [OK] No duplicate rows
+[01:37:50]   [OK] PK 'patch_id' is unique (14 records)
+[01:37:50]   dtypes:
 patch_id                 int64
 meta_volatility        float64
 aggression_shift       float64
 control_meta_factor    float64
-[23:05:47] 
+[01:37:50] 
   Target distribution (train):
 winner
 0    707170
 1    694387
-[23:05:47]   Orphan 'player_id' in train: 0 (0.0%)
-[23:05:48]   Orphan 'opponent_id' in train: 0 (0.0%)
-[23:05:48]   Orphan 'player_deck_signature' in train: 0 (0.0%)
-[23:05:48]   Orphan 'player_deck_signature' in test: 0 (0.0%)
-[23:05:48]   Orphan 'opponent_deck_signature' in train: 0 (0.0%)
-[23:05:48]   Orphan 'opponent_deck_signature' in test: 0 (0.0%)
-[23:06:23]   Orphan 'patch_id' in train: 0 (0.0%)
-[23:06:23]   Orphan 'patch_id' in test: 0 (0.0%)
-[23:06:23] 
+[01:37:50]   Orphan 'player_id' in train: 0 (0.0%)
+[01:37:50]   Orphan 'opponent_id' in train: 0 (0.0%)
+[01:37:50]   Orphan 'player_deck_signature' in train: 0 (0.0%)
+[01:37:50]   Orphan 'player_deck_signature' in test: 0 (0.0%)
+[01:37:51]   Orphan 'opponent_deck_signature' in train: 0 (0.0%)
+[01:37:51]   Orphan 'opponent_deck_signature' in test: 0 (0.0%)
+[01:38:17]   Orphan 'patch_id' in train: 0 (0.0%)
+[01:38:17]   Orphan 'patch_id' in test: 0 (0.0%)
+[01:38:17] 
 
 ========== STEP 2-6: PREPROCESSING ==========
-[23:06:24] 
+[01:38:17] 
   Joining train (n=1401557)...
-[23:06:32]   [OK] Row count preserved: 1401557. Columns after join: 54
-[23:06:32] 
+[01:38:22]   [OK] Row count preserved: 1401557. Columns after join: 54
+[01:38:22] 
   Joining test (n=400000)...
-[23:06:33]   [OK] Row count preserved: 400000. Columns after join: 53
-[23:06:33] 
+[01:38:24]   [OK] Row count preserved: 400000. Columns after join: 53
+[01:38:24] 
   Handling missing values for train...
-[23:06:44]   [OK] Remaining NaN after fill: 0
-[23:06:44] 
+[01:38:35]   [OK] Remaining NaN after fill: 0
+[01:38:35] 
   Handling missing values for test...
-[23:06:47]   [OK] Remaining NaN after fill: 0
-[23:06:47]   Engineering features...
-[23:06:54]   [OK] Feature count post engineering: 142
-[23:06:54]   Engineering features...
-[23:06:56]   [OK] Feature count post engineering: 95
-[23:06:57] 
-  [OK] Final feature count: 135
-[23:06:57]   Features: ['patch_id', 'arena_id', 'avg_elixir_player', 'avg_elixir_opponent', 'elixir_difference', 'first_crown_time_sec', 'match_duration_sec', 'elixir_spill_rate', 'tower_damage_diff_60s', 'p_trophy_count', 'p_aggression_index', 'p_cycle_mastery', 'p_tilt_factor', 'p_lifetime_matches_estimate', 'p_consistency_index', 'o_trophy_count', 'o_arena_id', 'o_aggression_index', 'o_cycle_mastery', 'o_tilt_factor', 'o_lifetime_matches_estimate', 'o_consistency_index', 'pd_win_condition_family', 'pd_avg_elixir_cost', 'pd_air_defense_score', 'pd_spell_pressure_score', 'pd_skill_floor', 'pd_skill_ceiling', 'pd_tempo_vector_1', 'pd_tempo_vector_2', 'pd_control_vector', 'pd_synergy_index', 'pd_complexity_rating', 'od_win_condition_family', 'od_avg_elixir_cost', 'od_air_defense_score', 'od_spell_pressure_score', 'od_skill_floor', 'od_skill_ceiling', 'od_tempo_vector_1', 'od_tempo_vector_2', 'od_control_vector', 'od_synergy_index', 'od_complexity_rating', 'bp_meta_volatility', 'bp_aggression_shift', 'bp_control_meta_factor', 'is_missing_patch_id', 'is_missing_arena_id', 'is_missing_avg_elixir_player', 'is_missing_avg_elixir_opponent', 'is_missing_elixir_difference', 'is_missing_first_crown_time_sec', 'is_missing_match_duration_sec', 'is_missing_elixir_spill_rate', 'is_missing_tower_damage_diff_60s', 'is_missing_p_trophy_count', 'is_missing_p_arena_id', 'is_missing_p_aggression_index', 'is_missing_p_cycle_mastery', 'is_missing_p_tilt_factor', 'is_missing_p_lifetime_matches_estimate', 'is_missing_p_consistency_index', 'is_missing_o_trophy_count', 'is_missing_o_arena_id', 'is_missing_o_aggression_index', 'is_missing_o_cycle_mastery', 'is_missing_o_tilt_factor', 'is_missing_o_lifetime_matches_estimate', 'is_missing_o_consistency_index', 'is_missing_pd_avg_elixir_cost', 'is_missing_pd_air_defense_score', 'is_missing_pd_spell_pressure_score', 'is_missing_pd_skill_floor', 'is_missing_pd_skill_ceiling', 'is_missing_pd_tempo_vector_1', 'is_missing_pd_tempo_vector_2', 'is_missing_pd_control_vector', 'is_missing_pd_synergy_index', 'is_missing_pd_complexity_rating', 'is_missing_od_avg_elixir_cost', 'is_missing_od_air_defense_score', 'is_missing_od_spell_pressure_score', 'is_missing_od_skill_floor', 'is_missing_od_skill_ceiling', 'is_missing_od_tempo_vector_1', 'is_missing_od_tempo_vector_2', 'is_missing_od_control_vector', 'is_missing_od_synergy_index', 'is_missing_od_complexity_rating', 'is_missing_bp_meta_volatility', 'is_missing_bp_aggression_shift', 'is_missing_bp_control_meta_factor', 'diff_trophies', 'diff_aggression', 'diff_consistency', 'diff_cycle_mastery', 'diff_lifetime_matches', 'diff_avg_elixir', 'diff_synergy', 'diff_deck_elixir', 'diff_skill_floor', 'diff_skill_ceiling', 'diff_air_defense', 'diff_spell_pressure', 'diff_control_vector', 'diff_complexity', 'diff_tempo1', 'diff_tempo2', 'ratio_trophies', 'ratio_aggression', 'ratio_synergy', 'ratio_avg_elixir', 'patch_x_psynergy', 'patch_x_osynergy', 'patch_x_diff_syn', 'p_agg_x_tempo1', 'o_agg_x_tempo1', 'diff_agg_x_tempo', 'arena_x_p_exp', 'arena_x_o_exp', 'diff_tilt', 'p_stability_score', 'o_stability_score', 'diff_stability', 'meta_vol_x_skill_gap', 'meta_shift_x_agg_diff', 'crown_time_ratio', 'time_to_first_crown', 'p_elixir_efficiency', 'elixir_edge', 'log1p_p_trophy_count', 'log1p_o_trophy_count', 'log1p_p_lifetime_matches_estimate', 'log1p_o_lifetime_matches_estimate']
-[23:06:58]   Encoding categoricals for LightGBM (target encoding)...
-[23:06:59]   [OK] Preprocessing complete
-[23:06:59] 
+[01:38:37]   [OK] Remaining NaN after fill: 0
+[01:38:37]   Engineering features...
+[01:38:46]   [WARN] Dropping 1 near-zero-variance cols: ['meta_shift_x_agg_diff']
+[01:38:56]   [OK] Feature count post engineering: 181
+[01:38:56]   Engineering features...
+[01:38:59]   [WARN] Dropping 1 near-zero-variance cols: ['meta_shift_x_agg_diff']
+[01:39:01]   [OK] Feature count post engineering: 134
+[01:39:04] 
+  [OK] Final feature count: 174
+[01:39:04]   Features: ['patch_id', 'arena_id', 'avg_elixir_player', 'avg_elixir_opponent', 'elixir_difference', 'first_crown_time_sec', 'match_duration_sec', 'elixir_spill_rate', 'tower_damage_diff_60s', 'p_trophy_count', 'p_aggression_index', 'p_cycle_mastery', 'p_tilt_factor', 'p_lifetime_matches_estimate', 'p_consistency_index', 'o_trophy_count', 'o_arena_id', 'o_aggression_index', 'o_cycle_mastery', 'o_tilt_factor', 'o_lifetime_matches_estimate', 'o_consistency_index', 'pd_win_condition_family', 'pd_avg_elixir_cost', 'pd_air_defense_score', 'pd_spell_pressure_score', 'pd_skill_floor', 'pd_skill_ceiling', 'pd_tempo_vector_1', 'pd_tempo_vector_2', 'pd_control_vector', 'pd_synergy_index', 'pd_complexity_rating', 'od_win_condition_family', 'od_avg_elixir_cost', 'od_air_defense_score', 'od_spell_pressure_score', 'od_skill_floor', 'od_skill_ceiling', 'od_tempo_vector_1', 'od_tempo_vector_2', 'od_control_vector', 'od_synergy_index', 'od_complexity_rating', 'bp_meta_volatility', 'bp_aggression_shift', 'bp_control_meta_factor', 'is_missing_patch_id', 'is_missing_arena_id', 'is_missing_avg_elixir_player', 'is_missing_avg_elixir_opponent', 'is_missing_elixir_difference', 'is_missing_first_crown_time_sec', 'is_missing_match_duration_sec', 'is_missing_elixir_spill_rate', 'is_missing_tower_damage_diff_60s', 'is_missing_p_trophy_count', 'is_missing_p_arena_id', 'is_missing_p_aggression_index', 'is_missing_p_cycle_mastery', 'is_missing_p_tilt_factor', 'is_missing_p_lifetime_matches_estimate', 'is_missing_p_consistency_index', 'is_missing_o_trophy_count', 'is_missing_o_arena_id', 'is_missing_o_aggression_index', 'is_missing_o_cycle_mastery', 'is_missing_o_tilt_factor', 'is_missing_o_lifetime_matches_estimate', 'is_missing_o_consistency_index', 'is_missing_pd_avg_elixir_cost', 'is_missing_pd_air_defense_score', 'is_missing_pd_spell_pressure_score', 'is_missing_pd_skill_floor', 'is_missing_pd_skill_ceiling', 'is_missing_pd_tempo_vector_1', 'is_missing_pd_tempo_vector_2', 'is_missing_pd_control_vector', 'is_missing_pd_synergy_index', 'is_missing_pd_complexity_rating', 'is_missing_od_avg_elixir_cost', 'is_missing_od_air_defense_score', 'is_missing_od_spell_pressure_score', 'is_missing_od_skill_floor', 'is_missing_od_skill_ceiling', 'is_missing_od_tempo_vector_1', 'is_missing_od_tempo_vector_2', 'is_missing_od_control_vector', 'is_missing_od_synergy_index', 'is_missing_od_complexity_rating', 'is_missing_bp_meta_volatility', 'is_missing_bp_aggression_shift', 'is_missing_bp_control_meta_factor', 'skill_gap', 'trophy_diff', 'stability_advantage', 'diff_lifetime_matches', 'diff_avg_elixir', 'diff_synergy', 'diff_deck_elixir', 'diff_skill_floor', 'diff_skill_ceiling', 'diff_air_defense', 'diff_spell_pressure', 'diff_control_vector', 'diff_complexity', 'diff_tempo1', 'diff_tempo2', 'ratio_trophies', 'ratio_aggression', 'ratio_synergy', 'ratio_avg_elixir', 'patch_x_psynergy', 'patch_x_osynergy', 'patch_x_diff_syn', 'p_agg_x_tempo1', 'o_agg_x_tempo1', 'diff_agg_x_tempo', 'arena_x_p_exp', 'arena_x_o_exp', 'diff_tilt', 'p_stability_score', 'o_stability_score', 'diff_stability', 'meta_vol_x_skill_gap', 'crown_time_ratio', 'time_to_first_crown', 'p_elixir_efficiency', 'elixir_edge', 'p_is_beatdown', 'p_is_control', 'p_is_spell', 'o_is_beatdown', 'o_is_control', 'o_is_spell', 'p_beats_style', 'o_beats_style', 'style_clash', 'mirrored_style', 'spell_vs_beatdown', 'p_dominance_score', 'o_dominance_score', 'diff_dominance', 'dominance_ratio', 'p_skill_expression', 'o_skill_expression', 'diff_skill_expression', 'p_pressure_vs_o_defense', 'o_pressure_vs_p_defense', 'net_pressure_advantage', 'p_form_stability', 'o_form_stability', 'diff_form_stability', 'p_veteran_score', 'o_veteran_score', 'diff_veteran', 'p_meta_alignment', 'o_meta_alignment', 'diff_meta_alignment', 'match_competitiveness', 'late_game_factor', 'early_game_dominance', 'early_x_skill', 'p_volatility_risk', 'o_volatility_risk', 'diff_volatility_risk', 'matchup_interaction', 'p_control_meta_boost', 'o_control_meta_boost', 'diff_control_boost', 'log1p_p_trophy_count', 'log1p_o_trophy_count', 'log1p_p_lifetime_matches_estimate', 'log1p_o_lifetime_matches_estimate']
+[01:39:05]   Encoding categoricals for LightGBM (OOF Target Encoding)...
+[01:39:22]   [OK] Preprocessing complete
+[01:39:23] 
 
 ========== STEP 7a: LightGBM TRAINING ==========
-[23:06:59] 
+[01:39:23] 
   -- Fold 1/5 --
-[23:07:00]   [INFO] Loading existing model: c:\Users\aadit\Documents\vs code\kaggle-royale\outputs\models\lgb_fold1.txt
-[23:07:01]   Fold 1 log-loss: 0.688305  |  1.5s
-[23:07:01] 
+[01:41:22]   Fold 1 log-loss: 0.688242  |  118.9s
+[01:41:22] 
   -- Fold 2/5 --
-[23:07:01]   [INFO] Loading existing model: c:\Users\aadit\Documents\vs code\kaggle-royale\outputs\models\lgb_fold2.txt
-[23:07:02]   Fold 2 log-loss: 0.688412  |  1.3s
-[23:07:02] 
+[01:42:48]   Fold 2 log-loss: 0.688310  |  86.3s
+[01:42:48] 
   -- Fold 3/5 --
-[23:07:02]   [INFO] Loading existing model: c:\Users\aadit\Documents\vs code\kaggle-royale\outputs\models\lgb_fold3.txt
-[23:07:03]   Fold 3 log-loss: 0.688383  |  1.5s
-[23:07:03] 
+[01:45:26]   Fold 3 log-loss: 0.688329  |  157.5s
+[01:45:26] 
   -- Fold 4/5 --
-[23:07:04]   [INFO] Loading existing model: c:\Users\aadit\Documents\vs code\kaggle-royale\outputs\models\lgb_fold4.txt
-[23:07:05]   Fold 4 log-loss: 0.688624  |  1.4s
-[23:07:05] 
+[01:47:46]   Fold 4 log-loss: 0.688524  |  140.1s
+[01:47:46] 
   -- Fold 5/5 --
-[23:07:05]   [INFO] Loading existing model: c:\Users\aadit\Documents\vs code\kaggle-royale\outputs\models\lgb_fold5.txt
-[23:07:06]   Fold 5 log-loss: 0.688305  |  1.5s
-[23:07:06] 
-  [INFO] Top 15 LGB features:
-                     feature    importance
-107              diff_tempo1  14225.940512
-108              diff_tempo2  12798.830895
-22   pd_win_condition_family   6317.891681
-33   od_win_condition_family   6079.740051
-102       diff_skill_ceiling   5545.676458
-29         pd_tempo_vector_2   4022.146911
-106          diff_complexity   3944.792033
-99              diff_synergy   3930.090895
-37            od_skill_floor   3708.521963
-4          elixir_difference   3592.521557
-101         diff_skill_floor   3360.691025
-103         diff_air_defense   3092.713407
-39         od_tempo_vector_1   2733.798834
-8      tower_damage_diff_60s   2536.927280
-11           p_cycle_mastery   2346.351618
-[23:07:07] 
-  [OK] LGB OOF log-loss: 0.688406
-[23:07:07]   Per-fold: [0.688305, 0.688412, 0.688383, 0.688624, 0.688305]
-[23:07:07]   [EXP] Experiment #1 tracked: LightGBM_baseline | CV=0.688406
-[23:07:08]   [SAVED] Submission: c:\Users\aadit\Documents\vs code\kaggle-royale\outputs\submissions\sub01_lgb_baseline.csv  |  shape=(400000, 2)
-[23:07:08]      Pred stats: min=0.3658  max=0.7211  mean=0.4957  std=0.0452
-[23:07:08] 
-
-========== STEP 7b: CatBoost TRAINING ==========
-[23:07:08]   CatBoost cat_features indices: [22, 33]
-[23:07:08] 
-  -- Fold 1/5 --
-[23:07:08]   [INFO] Loading existing model: c:\Users\aadit\Documents\vs code\kaggle-royale\outputs\models\cb_fold1.cbm
-[23:07:09]   Fold 1 log-loss: 0.688335  |  1.2s
-[23:07:09] 
-  -- Fold 2/5 --
-[23:09:01]   Fold 2 log-loss: 0.688359  |  111.4s
-[23:09:01] 
-  -- Fold 3/5 --
-[23:11:46]   Fold 3 log-loss: 0.688358  |  165.6s
-[23:11:46] 
-  -- Fold 4/5 --
-[23:15:45]   Fold 4 log-loss: 0.688589  |  239.1s
-[23:15:45] 
-  -- Fold 5/5 --
-[23:17:07]   Fold 5 log-loss: 0.688256  |  81.6s
-[23:17:07] 
-  [OK] CB OOF log-loss: 0.688379
-[23:17:07]   Per-fold: [0.688335, 0.688359, 0.688358, 0.688589, 0.688256]
-[23:17:07]   [EXP] Experiment #2 tracked: CatBoost_baseline | CV=0.688379
-[23:17:08]   [SAVED] Submission: c:\Users\aadit\Documents\vs code\kaggle-royale\outputs\submissions\sub02_cb_baseline.csv  |  shape=(400000, 2)
-[23:17:08]      Pred stats: min=0.3724  max=0.7081  mean=0.4958  std=0.0465
-[23:17:08] 
-  Calibrating LGB OOF predictions...
-[23:17:09]   LGB raw log-loss   : 0.688406
-[23:17:09]   LGB Platt log-loss : 0.688369
-[23:17:09] 
-  Calibrating CB OOF predictions...
-[23:17:10]   CB raw log-loss   : 0.688379
-[23:17:10]   CB Platt log-loss : 0.688359
-[23:17:11]   [SAVED] Submission: c:\Users\aadit\Documents\vs code\kaggle-royale\outputs\submissions\sub03_lgb_calibrated.csv  |  shape=(400000, 2)
-[23:17:11]      Pred stats: min=0.3560  max=0.7275  mean=0.4957  std=0.0493
-[23:17:11]   [EXP] Experiment #3 tracked: LightGBM_calibrated | CV=0.688369
-[23:17:12]   [SAVED] Submission: c:\Users\aadit\Documents\vs code\kaggle-royale\outputs\submissions\sub04_cb_calibrated.csv  |  shape=(400000, 2)
-[23:17:12]      Pred stats: min=0.3655  max=0.7118  mean=0.4958  std=0.0497
-[23:17:12]   [EXP] Experiment #4 tracked: CatBoost_calibrated | CV=0.688359
-[23:17:12] 
-  Searching for best blend weights...
-[23:17:16]   Best weight (LGB): 0.50  |  blend OOF log-loss: 0.688306
-[23:17:17]   [SAVED] Submission: c:\Users\aadit\Documents\vs code\kaggle-royale\outputs\submissions\sub05_weighted_blend.csv  |  shape=(400000, 2)
-[23:17:17]      Pred stats: min=0.3613  max=0.7170  mean=0.4958  std=0.0494
-[23:17:17]   [EXP] Experiment #5 tracked: Weighted_Blend | CV=0.688306
-[23:17:17] 
-  Level-2 Stacking with LogReg meta-model...
-[23:17:18]   Stacking meta OOF log-loss: 0.688307
-[23:17:19]   [SAVED] Submission: c:\Users\aadit\Documents\vs code\kaggle-royale\outputs\submissions\sub06_stacking.csv  |  shape=(400000, 2)
-[23:17:19]      Pred stats: min=0.3614  max=0.7093  mean=0.4958  std=0.0501
-[23:17:19]   [EXP] Experiment #6 tracked: Stacking_LogReg | CV=0.688307
-[23:17:19] 
-
-============================================================
-[23:17:19]   FINAL RESULTS SUMMARY
-[23:17:19] ============================================================
-[23:17:19]   LGB  OOF log-loss : 0.688406
-[23:17:19]   CB   OOF log-loss : 0.688379
-[23:17:19]   Best blend weight : LGB=0.50  CB=0.50
-[23:17:19]   Blend OOF LL      : 0.688306
-[23:17:19]   Stack OOF LL      : 0.688307
-[23:17:19] 
-  [BEST] Best model: blend_oof  (LL=0.688306)
-[23:17:19] 
-  Total wall-clock: 11.9 min
-[23:17:19] 
-  [DONE] PIPELINE COMPLETE
