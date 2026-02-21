@@ -1,0 +1,119 @@
+=== TRAIN COLUMNS ===
+['match_id', 'player_id', 'opponent_id', 'player_deck_signature', 'opponent_deck_signature', 'patch_id', 'arena_id', 'avg_elixir_player', 'avg_elixir_opponent', 'elixir_difference', 'first_crown_time_sec', 'match_duration_sec', 'elixir_spill_rate', 'tower_damage_diff_60s', 'winner']
+match_id                    object
+player_id                   object
+opponent_id                 object
+player_deck_signature       object
+opponent_deck_signature     object
+patch_id                   float64
+arena_id                   float64
+avg_elixir_player          float64
+avg_elixir_opponent        float64
+elixir_difference          float64
+first_crown_time_sec       float64
+match_duration_sec         float64
+elixir_spill_rate          float64
+tower_damage_diff_60s      float64
+winner                       int64
+
+=== TRAIN SAMPLE ===
+       match_id     player_id   opponent_id player_deck_signature opponent_deck_signature  patch_id  arena_id  avg_elixir_player  avg_elixir_opponent  elixir_difference  first_crown_time_sec  match_duration_sec  elixir_spill_rate  tower_damage_diff_60s  winner
+0  c44321110b82  d7a04c702592  ca1d5e5e33ce          8caf03772d2e            ab4f8b9d867d       9.0       5.0               3.23                 4.51              -1.28                  85.0               160.0           0.052030            -636.648321       0
+1  a97ef574b089  d6ad01ff2d39  db247c02e933          2b11fa44e48e            ba87fb10e9c3      10.0       5.0               4.42                 3.83                NaN                  32.0               121.0           0.279772             -46.145171       0
+2  b417896a5b95  602fb095fd8f  fb6d494b276d          8caf03772d2e            213018bd8780      13.0       5.0               3.23                 3.72              -0.49                  89.0               175.0           0.745889            1097.068059       0
+
+=== TEST COLUMNS ===
+['match_id', 'player_id', 'opponent_id', 'player_deck_signature', 'opponent_deck_signature', 'patch_id', 'arena_id', 'avg_elixir_player', 'avg_elixir_opponent', 'elixir_difference', 'first_crown_time_sec', 'match_duration_sec', 'elixir_spill_rate', 'tower_damage_diff_60s']
+match_id                    object
+player_id                   object
+opponent_id                 object
+player_deck_signature       object
+opponent_deck_signature     object
+patch_id                     int64
+arena_id                     int64
+avg_elixir_player          float64
+avg_elixir_opponent        float64
+elixir_difference          float64
+first_crown_time_sec         int64
+match_duration_sec           int64
+elixir_spill_rate          float64
+tower_damage_diff_60s      float64
+
+=== TEST SAMPLE ===
+       match_id     player_id   opponent_id player_deck_signature opponent_deck_signature  patch_id  arena_id  avg_elixir_player  avg_elixir_opponent  elixir_difference  first_crown_time_sec  match_duration_sec  elixir_spill_rate  tower_damage_diff_60s
+0  11c280157f2b  6e09b7219ca1  9a168595cac8          fa88377d45bb            c6679bd5476f         0         4               4.26                 4.34              -0.08                    41                 141           0.933529            -236.613006
+1  b4754f13d168  15b51f35b02f  65fbca9d1795          2b11fa44e48e            213018bd8780        13         3               4.42                 3.72               0.70                   134                 176           0.325459            -364.159870
+2  6a4f29e39583  b124524c4b1a  ad5516c4a55c          f6195f159835            990a7cd61133         8         1               3.03                 3.49              -0.46                    33                 143           0.795283             265.497408
+
+=== PLAYERS_BEHAVIOR COLUMNS ===
+['player_id', 'trophy_count', 'arena_id', 'aggression_index', 'cycle_mastery', 'tilt_factor', 'lifetime_matches_estimate', 'consistency_index']
+player_id                     object
+trophy_count                   int64
+arena_id                       int64
+aggression_index             float64
+cycle_mastery                float64
+tilt_factor                  float64
+lifetime_matches_estimate      int64
+consistency_index            float64
+
+=== PB SAMPLE ===
+      player_id  trophy_count  arena_id  aggression_index  cycle_mastery  tilt_factor  lifetime_matches_estimate  consistency_index
+0  b6589fc6ab0d          3394         8          0.683184       0.313620     0.067175                       5896           0.667444
+1  356a192b7913          1979         5          0.166283       0.688298     0.288694                       7779           0.572111
+2  da4b9237bacc          2163         6          0.154672       0.927711     0.412794                        160           0.857034
+
+=== SAMPLE_SUBMISSION ===
+['match_id', 'winner']
+       match_id  winner
+0  11c280157f2b       1
+1  b4754f13d168       1
+2  6a4f29e39583       1
+
+train shape: (1428000, 15)
+test  shape: (400000, 14)
+pb    shape: (20000, 8)
+
+=== TRAIN MISSING ===
+match_id                   43034
+player_id                  42714
+opponent_id                42753
+player_deck_signature      42976
+opponent_deck_signature    42536
+patch_id                   43154
+arena_id                   42889
+avg_elixir_player          47694
+avg_elixir_opponent        43006
+elixir_difference          43007
+first_crown_time_sec       42787
+match_duration_sec         43120
+elixir_spill_rate          42727
+tower_damage_diff_60s      42891
+winner                         0
+
+=== TEST MISSING ===
+match_id                   0
+player_id                  0
+opponent_id                0
+player_deck_signature      0
+opponent_deck_signature    0
+patch_id                   0
+arena_id                   0
+avg_elixir_player          0
+avg_elixir_opponent        0
+elixir_difference          0
+first_crown_time_sec       0
+match_duration_sec         0
+elixir_spill_rate          0
+tower_damage_diff_60s      0
+
+=== PB MISSING ===
+player_id                    0
+trophy_count                 0
+arena_id                     0
+aggression_index             0
+cycle_mastery                0
+tilt_factor                  0
+lifetime_matches_estimate    0
+consistency_index            0
+
+=== TRAIN TARGET DIST ===
